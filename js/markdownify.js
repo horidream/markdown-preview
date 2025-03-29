@@ -1,5 +1,4 @@
 (function(document) {
-
     const specialThemePrefix = 'special_'
     let mpp = {
         markedLoaded: 0
@@ -135,7 +134,6 @@
                 ADD_ATTR: ['flow'],
                 SANITIZE_DOM: false
             });
-
             if (items.toc) {
                 var ctx = [];
                 ctx.push('<div class="toc-list"><h1 id="table-of-contents">Table of Contents</h1>\n<ul>');
@@ -145,7 +143,6 @@
             }
             $(document.body).html(html);
             $('img').on("error", () => resolveImg(this));
-
             diagramFlowSeq.drawAllMermaid();
             postRender();
         });
@@ -163,6 +160,7 @@
             cssLink
                 .attr('rel', 'stylesheet')
                 .attr('href', css)
+                .attr('charset', 'UTF-8')
             $(document.head).append(cssLink)
         })
     }
