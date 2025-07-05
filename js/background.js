@@ -10,10 +10,17 @@
                     })
                     const text = await res.text()
                     sendResponse({
-                        data: text
+                        data: text,
+                        success: true
                     })
                 } catch(e) {
-                    //
+                    console.error('Failed to fetch file:', e.message)
+                    // 发送错误信息，让content script知道失败了
+                    sendResponse({
+                        data: null,
+                        success: false,
+                        error: e.message
+                    })
                 }
             })()
         }
