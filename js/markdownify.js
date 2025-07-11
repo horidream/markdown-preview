@@ -10,113 +10,15 @@
         toc = [],
         storage = chrome.storage.local;
 
-    // 检查扩展上下文是否有效的工具函数
-    function isExtensionContextValid() {
-        try {
-            return !!(chrome && chrome.runtime && chrome.runtime.id);
-        } catch (e) {
-            return false;
-        }
-    }
-
-    // 显示扩展状态的提示
-    function showExtensionStatus() {
-        if (!isExtensionContextValid()) {
-            console.warn('Extension context is invalid. Some features may not work properly.');
-            console.log('If you see this message, try refreshing the page or reloading the extension.');
-            
-            // 在页面顶部显示用户友好的提示
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                background: #fff3cd;
-                color: #856404;
-                padding: 10px;
-                border-bottom: 1px solid #ffeaa7;
-                z-index: 9999;
-                font-family: Arial, sans-serif;
-                font-size: 14px;
-                text-align: center;
-                cursor: pointer;
-            `;
-            notification.innerHTML = `
-                <strong>Markdown Preview Plus:</strong> 
-                Extension context lost. Please refresh the page (F5) or reload the extension in chrome://extensions/
-                <span style="float: right; font-weight: bold;">&times;</span>
-            `;
-            
-            notification.onclick = function() {
-                notification.remove();
-            };
-            
-            document.body.insertBefore(notification, document.body.firstChild);
-            
-            // 10秒后自动隐藏
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.remove();
-                }
-            }, 10000);
-        }
-    }
-
     mpp.isText = () => {
         var value = document.contentType;
         return value && /text\/(?:x-)?(markdown|plain)/i.test(value);
     };
 
     mpp.ajax = options => {
-        // 检查扩展上下文是否有效
-        try {
-            if (!chrome.runtime || !chrome.runtime.sendMessage) {
-                throw new Error('Extension context invalidated');
-            }
-            
-            chrome.runtime.sendMessage({message: "autoreload", url: options.url}, response => {
-                // 检查是否有运行时错误
-                if (chrome.runtime.lastError) {
-                    console.warn('Chrome runtime error:', chrome.runtime.lastError.message);
-                    // 使用备用方案
-                    const fallbackResponse = {
-                        data: document.body.innerText,
-                        success: true,
-                        fromFallback: true
-                    };
-                    options.complete(fallbackResponse);
-                    return;
-                }
-                
-                if (response && response.success) {
-                    options.complete(response);
-                } else {
-                    // 如果fetch失败，尝试从document.body直接读取
-                    console.warn('Failed to fetch file via background script:', response?.error || 'Unknown error');
-                    console.log('Attempting to read from document.body directly...');
-                    
-                    // 使用document.body.innerText作为备用方案
-                    const fallbackResponse = {
-                        data: document.body.innerText,
-                        success: true,
-                        fromFallback: true
-                    };
-                    options.complete(fallbackResponse);
-                }
-            });
-        } catch (error) {
-            console.warn('Extension context error:', error.message);
-            console.log('Using direct document.body content...');
-            
-            // 直接使用document.body内容作为备用方案
-            const fallbackResponse = {
-                data: document.body.innerText,
-                success: true,
-                fromFallback: true
-            };
-            options.complete(fallbackResponse);
-        }
+        chrome.runtime.sendMessage({message: "autoreload", url: options.url}, response => {
+            options.complete(response);
+        });
     };
 
     function getExtension(url) {
@@ -247,16 +149,7 @@
     }
 
     function getThemeCss(theme) {
-        try {
-            if (!chrome.runtime || !chrome.runtime.getURL) {
-                throw new Error('Extension context invalidated');
-            }
-            return chrome.runtime.getURL('theme/' + theme + '.css');
-        } catch (error) {
-            console.warn('Extension context error in getThemeCss:', error.message);
-            // 返回一个备用的CSS URL或者空字符串
-            return '';
-        }
+        return chrome.runtime.getURL('theme/' + theme + '.css');
     }
 
     function insertCssPaths(paths) {
@@ -339,16 +232,7 @@
             mpp.ajax({
                 url: location,
                 complete: (response) => {
-                    let data;
-                    
-                    if (response && response.data) {
-                        data = response.data;
-                    } else {
-                        // 如果无法获取数据，跳过这次重载
-                        console.warn('Auto-reload failed, skipping this cycle');
-                        return;
-                    }
-                    
+                    var data = response.data
                     if (previousText == data) {
                         return;
                     }
@@ -368,21 +252,8 @@
             url: location,
             cache: false,
             complete: function(response) {
-                let contentData;
-                
-                if (response && response.data) {
-                    contentData = response.data;
-                    if (response.fromFallback) {
-                        console.log('Using fallback content from document.body');
-                    }
-                } else {
-                    // 最后的备用方案
-                    contentData = document.body.innerText;
-                    console.log('Using final fallback: document.body.innerText');
-                }
-                
-                previousText = contentData;
-                makeHtml(contentData);
+                previousText = document.body.innerText;
+                makeHtml(document.body.innerText);
                 setTheme()
 
                 storage.get('auto_reload', function(items) {
@@ -394,27 +265,16 @@
         });
     }
 
-    // 检查扩展状态
-    showExtensionStatus();
-    
     storage.get(['exclude_exts', 'disable_markdown', 'katex', 'html'], function(items) {
         if (items.disable_markdown) {
             return;
         }
 
         if (items.katex) {
-            try {
-                if (!chrome.runtime || !chrome.runtime.getURL) {
-                    throw new Error('Extension context invalidated');
-                }
-                var mjc = document.createElement('link');
-                mjc.rel = 'stylesheet';
-                mjc.href = chrome.runtime.getURL('css/katex.min.css');
-                $(document.head).append(mjc);
-            } catch (error) {
-                console.warn('Extension context error loading katex CSS:', error.message);
-                // 可以继续工作，只是没有katex样式
-            }
+            var mjc = document.createElement('link');
+            mjc.rel = 'stylesheet';
+            mjc.href = chrome.runtime.getURL('css/katex.min.css');
+            $(document.head).append(mjc);
         }
 
         var allExtentions = ["md", "text", "markdown", "mdown", "txt", "mkd", "rst", "rmd"];
@@ -431,41 +291,34 @@
         }
     });
 
-    try {
-        if (chrome.storage && chrome.storage.onChanged && chrome.storage.onChanged.addListener) {
-            chrome.storage.onChanged.addListener(function(changes, namespace) {
-                var pageKey = specialThemePrefix + location.href;
+    chrome.storage.onChanged.addListener(function(changes, namespace) {
+        var pageKey = specialThemePrefix + location.href;
 
-                console.log("changes:", changes)
-                for (key in changes) {
-                    var value = changes[key];
-                    if(key == pageKey || key == 'theme' || key == 'custom_css_paths') {
-                        setTheme();
-                    } else if(key == 'toc') {
-                        location.reload();
-                    } else if(key == 'reload_freq') {
-                        storage.get('auto_reload', function(items) {
-                            startAutoReload();
-                        });
-                    } else if(key == 'auto_reload') {
-                        if(value.newValue) {
-                            startAutoReload();
-                        } else {
-                            stopAutoReload();
-                        }
-                    } else if(key == 'disable_markdown') {
-                        location.reload();
-                    } else if(key == 'supportMath') {
-                        location.reload();
-                    } else if(key == 'katex') {
-                        location.reload();
-                    }
+        console.log("changes:", changes)
+        for (key in changes) {
+            var value = changes[key];
+            if(key == pageKey || key == 'theme' || key == 'custom_css_paths') {
+                setTheme();
+            } else if(key == 'toc') {
+                location.reload();
+            } else if(key == 'reload_freq') {
+                storage.get('auto_reload', function(items) {
+                    startAutoReload();
+                });
+            } else if(key == 'auto_reload') {
+                if(value.newValue) {
+                    startAutoReload();
+                } else {
+                    stopAutoReload();
                 }
-            });
+            } else if(key == 'disable_markdown') {
+                location.reload();
+            } else if(key == 'supportMath') {
+                location.reload();
+            } else if(key == 'katex') {
+                location.reload();
+            }
         }
-    } catch (error) {
-        console.warn('Extension context error adding storage listener:', error.message);
-        // 继续工作，只是没有动态设置监听
-    }
+    });
 
 }(document));
