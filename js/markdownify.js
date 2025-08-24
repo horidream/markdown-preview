@@ -7,6 +7,7 @@
     var interval,
         defaultReloadFreq = 3,
         previousText,
+        originalMarkdownText,
         toc = [],
         storage = chrome.storage.local;
 
@@ -88,6 +89,16 @@
         marked.use(markedHighlight({
           langPrefix: 'hljs language-',
           highlight(code, lang) {
+            // If a language is specified, use it
+            if (lang && hljs.getLanguage(lang)) {
+              try {
+                return hljs.highlight(code, { language: lang }).value;
+              } catch (err) {
+                // Fall back to auto-detection if specified language fails
+                return hljs.highlightAuto(code).value;
+              }
+            }
+            // Auto-detect language for code blocks without specified language
             return hljs.highlightAuto(code).value;
           }
         }));
@@ -99,6 +110,7 @@
     // apply the converter.
     function makeHtml(data) {
         storage.get(['supportMath', 'katex', 'toc'], function(items) {
+            console.log(items)
             // Convert MarkDown to HTML
             var preHtml = data;
             if (items.katex) {
