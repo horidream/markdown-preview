@@ -85,6 +85,12 @@
             return
         }
 
+        const renderer = new marked.Renderer();
+        renderer.checkbox = function({checked}) {
+            return `<input type="checkbox"${checked ? ' checked' : ''}>`;
+        };
+
+        config.markedOptions.renderer = renderer;
         marked.setOptions(config.markedOptions);
         marked.use(markedHighlight({
           langPrefix: 'hljs language-',
@@ -120,13 +126,13 @@
 
             if (items.toc) {
                 toc = [];
-                const renderer = new marked.Renderer()
+                const tocRenderer = new marked.Renderer()
                 const slugger = new marked.Slugger()
                 const r = {
-                  heading: renderer.heading.bind(renderer),
+                  heading: tocRenderer.heading.bind(tocRenderer),
                 };
 
-                renderer.heading = (text, level, raw, slugger) => {
+                tocRenderer.heading = (text, level, raw, slugger) => {
                     var anchor = config.markedOptions.headerPrefix + slugger.serialize(raw)
 
                     toc.push({
@@ -137,7 +143,13 @@
 
                     return r.heading(text, level, raw, slugger);
                 };
-                config.markedOptions.renderer = renderer;
+                
+                // Preserve checkbox renderer if it exists
+                if (config.markedOptions.renderer && config.markedOptions.renderer.listitem) {
+                    tocRenderer.listitem = config.markedOptions.renderer.listitem;
+                }
+                
+                config.markedOptions.renderer = tocRenderer;
             }
 
             initMarked()
