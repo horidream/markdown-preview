@@ -106,4 +106,9 @@ th, td {
     content: none;
     display: none;
   }
+
+  .page-break {
+    break-before: page !important;
+    page-break-before: always !important;
+  }
 }
