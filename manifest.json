@@ -55,7 +55,8 @@
     },
     "permissions": [
         "storage",
-        "clipboardWrite"
+        "clipboardWrite",
+        "scripting"
     ],
     "host_permissions": [
         "file:///*"
