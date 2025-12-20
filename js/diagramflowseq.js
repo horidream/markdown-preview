@@ -1,10 +1,21 @@
-var diagramFlowSeq = {mermaidDivId: 0};
+var diagramFlowSeq = {mermaidDivId: 0, mermaidInitialized: false};
 
 (function (){
 
 var codeStatus = "InCodeStatus";
 var multiMathStatus = "InMultiMath";
 var emptyStatus = "" ;
+
+function initMermaid() {
+    if (!diagramFlowSeq.mermaidInitialized && typeof mermaid !== 'undefined') {
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'default',
+            securityLevel: 'loose'
+        });
+        diagramFlowSeq.mermaidInitialized = true;
+    }
+}
 
 function makeMermaidId(id) {
     return 'mermaidId' + id.toString();
@@ -22,18 +33,22 @@ function decodeHtmlEntities(str) {
 }
 
 function drawMermaid(id) {
+    initMermaid();
     var divMermaid = document.getElementById(id);
+    if (!divMermaid) return;
+
     var txt = decodeHtmlEntities(divMermaid.innerHTML);
-    var tmpRendId = 'tmpMerId' + id;
-    var tmpDiv = document.createElement('div');
-    tmpDiv.id = tmpRendId;
-    document.body.appendChild(tmpDiv);
-    if (txt) {
-        (async () => {
-            const { svg } = await mermaid.render(tmpDiv.id, txt)
-            divMermaid.innerHTML = svg
-        })()
-    }
+    if (!txt || !txt.trim()) return;
+
+    (async () => {
+        try {
+            const { svg } = await mermaid.render('mermaid-svg-' + id, txt);
+            divMermaid.innerHTML = svg;
+        } catch (e) {
+            console.error('Mermaid render error:', e);
+            divMermaid.innerHTML = '<pre style="color: red;">Mermaid Error: ' + e.message + '</pre><pre>' + txt + '</pre>';
+        }
+    })();
 }
 
 function resetDivId() {
@@ -178,17 +193,17 @@ function prepareDiagram(data) {
         return preLangs.indexOf(lang) !== -1;
     }
     var isStartCode = function(src) {
-        var pattern = /^(`{3,})(\w*)/g;
+        var pattern = /^(\s*)(`{3,})(\w*)/g;
         var mc = null;
         var ret = false;
         if (null != (mc = pattern.exec(src))) {
-            lang = mc[2];
+            lang = mc[3];
             ret = true;
         }
         return ret;
     }
     var isEndCode = function(src) {
-        var pattern = /^(`{3,})(\w*)/g;
+        var pattern = /^(\s*)(`{3,})(\w*)/g;
         var mc = null;
         var ret = false;
         if (null != (mc = pattern.exec(src))) {

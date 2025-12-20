@@ -42,8 +42,8 @@
                 "js/highlight.min.js",
                 "js/markdownify.js",
                 "js/underscore-min.js",
-                "js/diagramflowseq.js",
                 "js/mermaid.min.js",
+                "js/diagramflowseq.js",
                 "js/platumlencode.js",
                 "js/rawdeflate.js"
             ],
