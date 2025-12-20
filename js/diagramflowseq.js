@@ -60,6 +60,12 @@ function drawAllMermaid() {
         var mermaidId = makeMermaidId(i);
         drawMermaid(mermaidId);
     }
+    // Initialize copy buttons after all diagrams are rendered
+    if (typeof mermaidCopy !== 'undefined') {
+        setTimeout(function() {
+            mermaidCopy.initCopyButtons();
+        }, 200);
+    }
 }
 
 function renderKatex(srcMath, isDisplay) {

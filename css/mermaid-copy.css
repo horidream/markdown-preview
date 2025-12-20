@@ -1,0 +1,91 @@
+/* Mermaid diagram container styling */
+[id^="mermaidId"] {
+    position: relative;
+    margin: 16px 0;
+    padding: 16px;
+    background-color: #fafafa;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    text-align: center;
+}
+
+[id^="mermaidId"] svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Mermaid copy button */
+.mermaid-copy-button {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    color: #333;
+    padding: 4px 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    transition: all 0.2s ease;
+    z-index: 10;
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* Show copy button on hover */
+[id^="mermaidId"]:hover .mermaid-copy-button {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Keep button visible when hovered or copied */
+.mermaid-copy-button:hover,
+.mermaid-copy-button.copied {
+    opacity: 1;
+    visibility: visible;
+    background: rgba(255, 255, 255, 1);
+    border-color: rgba(0, 0, 0, 0.25);
+}
+
+.mermaid-copy-button:active {
+    transform: scale(0.95);
+}
+
+/* Copied state */
+.mermaid-copy-button.copied {
+    background: rgba(76, 175, 80, 0.15);
+    border-color: rgba(76, 175, 80, 0.5);
+    color: #4caf50;
+}
+
+.mermaid-copy-button svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+.mermaid-copy-button .copy-text {
+    font-weight: 500;
+}
+
+/* Print styles - hide copy button when printing */
+@media print {
+    .mermaid-copy-button,
+    [id^="mermaidId"] .mermaid-copy-button,
+    button.mermaid-copy-button {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+    }
+
+    /* Clean up diagram container for print */
+    [id^="mermaidId"] {
+        background-color: transparent !important;
+        border: none !important;
+        padding: 8px 0 !important;
+    }
+}

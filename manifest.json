@@ -30,7 +30,8 @@
             ],
             "css": [
                 "css/MarkdownTOC.css",
-                "css/highlight.css"
+                "css/highlight.css",
+                "css/mermaid-copy.css"
             ],
             "js": [
                 "js/katex.min.js",
@@ -44,6 +45,7 @@
                 "js/underscore-min.js",
                 "js/mermaid.min.js",
                 "js/diagramflowseq.js",
+                "js/mermaid-copy.js",
                 "js/platumlencode.js",
                 "js/rawdeflate.js"
             ],
