@@ -26,6 +26,16 @@ Usage
 3. Open local or remote .md file in Chrome.
 4. See nicely formatted HTML!
 
+Print Page Breaks
+-----------------
+
+To force printing to start a new page, add an HTML element with the
+`page-break` class at the desired point in your Markdown:
+
+```html
+<div class="page-break"></div>
+```
+
 Math Syntax
 -----------
 
@@ -91,4 +101,3 @@ Links
 [mp]: https://github.com/borismus/markdown-preview
 [mermaid]: https://github.com/mermaid-js/mermaid
 [mathjax]: https://github.com/mathjax/MathJax
-

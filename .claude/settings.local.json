@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(open /Users/baolizhai/Repo/markdown-preview/test.md)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

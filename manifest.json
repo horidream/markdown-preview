@@ -31,7 +31,8 @@
             "css": [
                 "css/MarkdownTOC.css",
                 "css/highlight.css",
-                "css/mermaid-copy.css"
+                "css/mermaid-copy.css",
+                "css/print.css"
             ],
             "js": [
                 "js/katex.min.js",
