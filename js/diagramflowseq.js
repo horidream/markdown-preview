@@ -10,8 +10,115 @@ function initMermaid() {
     if (!diagramFlowSeq.mermaidInitialized && typeof mermaid !== 'undefined') {
         mermaid.initialize({
             startOnLoad: false,
-            theme: 'default',
-            securityLevel: 'loose'
+            theme: 'base',
+            securityLevel: 'loose',
+            themeVariables: {
+                primaryColor: '#bbdefb',
+                primaryTextColor: '#0d47a1',
+                primaryBorderColor: '#1976d2',
+                secondaryColor: '#ffe0b2',
+                secondaryTextColor: '#e65100',
+                secondaryBorderColor: '#ff9800',
+                tertiaryColor: '#e1bee7',
+                tertiaryTextColor: '#6a1b9a',
+                tertiaryBorderColor: '#9c27b0',
+                lineColor: '#546e7a',
+                background: '#ffffff',
+                nodeTextColor: '#212121',
+                textColor: '#212121',
+                labelTextColor: '#212121',
+                edgeLabelBackground: '#ffffff',
+                clusterBkg: '#eceff1',
+                clusterBorder: '#78909c',
+                defaultLinkColor: '#1565c0',
+                titleColor: '#37474f',
+                actorBorder: '#1976d2',
+                actorBkg: '#e3f2fd',
+                actorTextColor: '#0d47a1',
+                actorLineColor: '#64b5f6',
+                signalColor: '#546e7a',
+                signalTextColor: '#212121',
+                labelBoxBorderColor: '#78909c',
+                labelBoxBkgColor: '#eceff1',
+                loopTextColor: '#212121',
+                noteBorderColor: '#ffc107',
+                noteBkgColor: '#fff8e1',
+                noteTextColor: '#212121',
+                nodeBorder: '#78909c',
+                pie1: '#42a5f5',
+                pie2: '#66bb6a',
+                pie3: '#ffa726',
+                pie4: '#ab47bc',
+                pie5: '#ef5350',
+                pie6: '#26c6da',
+                pie7: '#ffca28',
+                pie8: '#8d6e63',
+                pie9: '#78909c',
+                pie10: '#ec407a',
+                pie11: '#7e57c2',
+                pie12: '#26a69a',
+                cScale0: '#4A90D9',
+                cScale1: '#5BB5A2',
+                cScale2: '#E8915A',
+                cScale3: '#9B7ED8',
+                cScale4: '#E06B8A',
+                cScale5: '#5AADCF',
+                cScale6: '#D4A44C',
+                cScale7: '#6BAF7D',
+                cScale8: '#C47DB5',
+                cScale9: '#7A9EB5',
+                cScaleLabel0: '#ffffff',
+                cScaleLabel1: '#ffffff',
+                cScaleLabel2: '#ffffff',
+                cScaleLabel3: '#ffffff',
+                cScaleLabel4: '#ffffff',
+                cScaleLabel5: '#ffffff',
+                cScaleLabel6: '#ffffff',
+                cScaleLabel7: '#ffffff',
+                cScaleLabel8: '#ffffff',
+                cScaleLabel9: '#ffffff',
+                labelBackgroundColor: '#eceff1',
+                git0: '#42a5f5',
+                git1: '#66bb6a',
+                git2: '#ffa726',
+                git3: '#ab47bc',
+                git4: '#ef5350',
+                git5: '#26c6da',
+                git6: '#ffca28',
+                git7: '#78909c',
+                classText: '#212121',
+                taskBorderColor: '#1976d2',
+                taskBkgColor: '#bbdefb',
+                activeTaskBorderColor: '#388e3c',
+                activeTaskBkgColor: '#c8e6c9',
+                doneTaskBorderColor: '#78909c',
+                doneTaskBkgColor: '#eceff1',
+                critBorderColor: '#d32f2f',
+                critBkgColor: '#ffcdd2',
+                todayLineColor: '#f44336'
+            },
+            flowchart: {
+                htmlLabels: true,
+                curve: 'basis',
+                rankSpacing: 50,
+                nodeSpacing: 50,
+                padding: 10
+            },
+            sequence: {
+                diagramMarginX: 50,
+                diagramMarginY: 10,
+                boxTextMargin: 5,
+                noteMargin: 10,
+                messageMargin: 35,
+                mirrorActors: true
+            },
+            mindmap: {
+                padding: 10,
+                maxNodeSizeX: 200,
+                maxNodeSizeY: 100,
+                useMaxWidth: true,
+                nodeRadius: 10
+            }
         });
         diagramFlowSeq.mermaidInitialized = true;
     }
@@ -42,10 +149,16 @@ function drawMermaid(id) {
 
     (async () => {
         try {
+            divMermaid.classList.remove('mermaid-rendered', 'mermaid-error');
+            divMermaid.classList.add('mermaid-loading');
             const { svg } = await mermaid.render('mermaid-svg-' + id, txt);
             divMermaid.innerHTML = svg;
+            divMermaid.classList.remove('mermaid-loading');
+            divMermaid.classList.add('mermaid-rendered');
         } catch (e) {
             console.error('Mermaid render error:', e);
+            divMermaid.classList.remove('mermaid-loading', 'mermaid-rendered');
+            divMermaid.classList.add('mermaid-error');
             divMermaid.innerHTML = '<pre style="color: red;">Mermaid Error: ' + e.message + '</pre><pre>' + txt + '</pre>';
         }
     })();
