@@ -149,18 +149,22 @@ function escapeHtml(str) {
 }
 
 function normalizeMermaidSource(src) {
-    var normalized = decodeHtmlEntities(src || '').replace(/\r\n?/g, '\n').trim();
+    return decodeHtmlEntities(src || '').replace(/\r\n?/g, '\n').trim();
+}
 
-    // Some captured/copy-pasted Mermaid blocks arrive as one physical line with
-    // escaped separators. Normalize those to match MiFa's DOM text rendering path.
-    if (normalized.indexOf('\n') === -1 && /\\r\\n|\\n|\\r/.test(normalized)) {
-        normalized = normalized
-            .replace(/\\r\\n/g, '\n')
-            .replace(/\\n/g, '\n')
-            .replace(/\\r/g, '\n');
-    }
+async function renderMermaidWithRun(divMermaid, id, txt) {
+    var graphDiv = document.createElement('div');
+    graphDiv.id = id + '-graph';
+    graphDiv.className = 'mermaid';
+    graphDiv.textContent = txt;
 
-    return normalized;
+    divMermaid.innerHTML = '';
+    divMermaid.appendChild(graphDiv);
+
+    await mermaid.run({
+        querySelector: '#' + graphDiv.id,
+        suppressErrors: false
+    });
 }
 
 function drawMermaid(id) {
@@ -175,8 +179,7 @@ function drawMermaid(id) {
         try {
             divMermaid.classList.remove('mermaid-rendered', 'mermaid-error');
             divMermaid.classList.add('mermaid-loading');
-            const { svg } = await mermaid.render('mermaid-svg-' + id, txt);
-            divMermaid.innerHTML = svg;
+            await renderMermaidWithRun(divMermaid, id, txt);
             divMermaid.classList.remove('mermaid-loading');
             divMermaid.classList.add('mermaid-rendered');
         } catch (e) {
