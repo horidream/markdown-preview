@@ -139,12 +139,36 @@ function decodeHtmlEntities(str) {
     return textarea.value;
 }
 
+function escapeHtml(str) {
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function normalizeMermaidSource(src) {
+    var normalized = decodeHtmlEntities(src || '').replace(/\r\n?/g, '\n').trim();
+
+    // Some captured/copy-pasted Mermaid blocks arrive as one physical line with
+    // escaped separators. Normalize those to match MiFa's DOM text rendering path.
+    if (normalized.indexOf('\n') === -1 && /\\r\\n|\\n|\\r/.test(normalized)) {
+        normalized = normalized
+            .replace(/\\r\\n/g, '\n')
+            .replace(/\\n/g, '\n')
+            .replace(/\\r/g, '\n');
+    }
+
+    return normalized;
+}
+
 function drawMermaid(id) {
     initMermaid();
     var divMermaid = document.getElementById(id);
     if (!divMermaid) return;
 
-    var txt = decodeHtmlEntities(divMermaid.innerHTML);
+    var txt = normalizeMermaidSource(divMermaid.textContent || divMermaid.innerHTML);
     if (!txt || !txt.trim()) return;
 
     (async () => {
@@ -259,7 +283,7 @@ function prepareSpecialCode(lang, code) {
         retStr = renderKatex(code, true);
     } else if (lang === "mermaid") {
         var mermiadId = genNextMermaidDivId();
-        retStr = '<div id=\"' + mermiadId + '\">' + code + '</div>\n';
+        retStr = '<div id=\"' + mermiadId + '\">' + escapeHtml(code) + '</div>\n';
     } else if (lang === "puml") {
         if (window.navigator.onLine) {
             const umlCode = platumlEncoder.platumlCompress(code);
