@@ -154,10 +154,11 @@ function normalizeMermaidSource(src) {
 
 async function renderMermaidWithRun(divMermaid, id, txt) {
     var graphDiv = document.createElement('div');
-    graphDiv.id = id + '-graph';
+    graphDiv.id = 'mermaidGraph-' + id;
     graphDiv.className = 'mermaid';
     graphDiv.textContent = txt;
 
+    divMermaid.dataset.mermaidSource = txt;
     divMermaid.innerHTML = '';
     divMermaid.appendChild(graphDiv);
 

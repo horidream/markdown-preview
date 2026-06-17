@@ -1,35 +1,114 @@
 /**
- * Mermaid diagram copy functionality
- * - Click: Copy PNG with transparent background
- * - Shift+Click: Copy JPEG with white background and padding
+ * Mermaid diagram copy functionality.
+ * - Click: copy transparent PNG
+ * - Shift+Click: copy white-background PNG
+ * - Cmd/Ctrl+Click: copy Mermaid source
+ * - Option/Alt with any mode: download instead of copy
  */
 var mermaidCopy = (function() {
+    async function copyToClipboard(text) {
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
 
-    /**
-     * Inline computed styles onto SVG elements to preserve them during export
-     */
+            var textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                document.execCommand('copy');
+                return true;
+            } finally {
+                textArea.remove();
+            }
+        } catch (error) {
+            console.error('Failed to copy to clipboard:', error);
+            return false;
+        }
+    }
+
+    function downloadBlob(blob, filename) {
+        try {
+            var downloadUrl = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(downloadUrl);
+            return true;
+        } catch (error) {
+            console.error('Failed to download blob:', error);
+            return false;
+        }
+    }
+
+    function downloadTextFile(text, filename, type) {
+        return downloadBlob(new Blob([text], { type: type || 'text/plain' }), filename);
+    }
+
+    function shrinkFontsForExport(svgClone, factor) {
+        factor = factor || 0.90;
+
+        var styleEl = svgClone.querySelector('style');
+        if (styleEl && styleEl.textContent) {
+            styleEl.textContent = styleEl.textContent.replace(
+                /font-size\s*:\s*([\d.]+)px/g,
+                function(match, size) {
+                    return 'font-size:' + (parseFloat(size) * factor).toFixed(1) + 'px';
+                }
+            );
+        }
+
+        var allEls = svgClone.querySelectorAll('[style*="font-size"], [font-size]');
+        allEls.forEach(function(el) {
+            var inlineSize = el.style.fontSize;
+            if (inlineSize) {
+                var inlinePx = parseFloat(inlineSize);
+                if (!isNaN(inlinePx)) {
+                    el.style.fontSize = (inlinePx * factor).toFixed(1) + 'px';
+                }
+            }
+
+            var attrSize = el.getAttribute('font-size');
+            if (attrSize) {
+                var attrPx = parseFloat(attrSize);
+                if (!isNaN(attrPx)) {
+                    el.setAttribute('font-size', (attrPx * factor).toFixed(1) + 'px');
+                }
+            }
+        });
+    }
+
     function inlineComputedStyles(originalSvg, clonedSvg) {
-        const styleProperties = [
+        var styleProperties = [
             'rx', 'ry', 'stroke', 'stroke-width', 'fill', 'opacity',
             'stroke-opacity', 'fill-opacity', 'stroke-dasharray', 'stroke-linecap',
             'stroke-linejoin', 'font-family', 'font-size', 'font-weight'
         ];
 
-        const originalElements = originalSvg.querySelectorAll('*');
-        const clonedElements = clonedSvg.querySelectorAll('*');
+        var originalElements = originalSvg.querySelectorAll('*');
+        var clonedElements = clonedSvg.querySelectorAll('*');
 
-        originalElements.forEach((origEl, index) => {
-            const cloneEl = clonedElements[index];
+        originalElements.forEach(function(origEl, index) {
+            var cloneEl = clonedElements[index];
             if (!cloneEl) return;
 
-            const computedStyle = window.getComputedStyle(origEl);
+            var computedStyle = window.getComputedStyle(origEl);
 
-            styleProperties.forEach(prop => {
-                const value = computedStyle.getPropertyValue(prop);
+            styleProperties.forEach(function(prop) {
+                var value = computedStyle.getPropertyValue(prop);
 
                 if (value && value !== 'none' && value !== 'auto' && value !== '') {
                     if ((prop === 'rx' || prop === 'ry') && cloneEl.tagName.toLowerCase() === 'rect') {
-                        const numValue = parseFloat(value);
+                        var numValue = parseFloat(value);
                         if (!isNaN(numValue) && numValue > 0) {
                             cloneEl.setAttribute(prop, numValue);
                         }
@@ -39,66 +118,49 @@ var mermaidCopy = (function() {
         });
     }
 
-    /**
-     * Export SVG to image and copy to clipboard
-     * @param {SVGElement} svg - SVG element to export
-     * @param {Object} options - Export options
-     * @param {string} options.backgroundColor - Background color ('transparent' or color like '#ffffff')
-     * @param {number} options.padding - Padding around the image
-     * @returns {Promise<boolean>} Success status
-     */
-    async function exportSvgToImage(svg, options = {}) {
+    async function exportSvgToImage(svg, options) {
+        options = options || {};
+
         try {
-            const {
-                backgroundColor = 'transparent',
-                padding = (backgroundColor !== 'transparent' ? 40 : 0)
-            } = options;
+            var asJpeg = options.asJpeg || false;
+            var backgroundColor = options.backgroundColor || (asJpeg ? '#ffffff' : 'transparent');
+            var padding = options.padding !== undefined ? options.padding : (backgroundColor !== 'transparent' ? 40 : 0);
+            var download = options.download || false;
+            var filenamePrefix = options.filenamePrefix || 'diagram';
 
-            // Clone the SVG to avoid modifying the original
-            const svgClone = svg.cloneNode(true);
-
-            // Inline computed styles
+            var svgClone = svg.cloneNode(true);
             inlineComputedStyles(svg, svgClone);
+            shrinkFontsForExport(svgClone);
 
-            // Get the SVG dimensions
-            const bbox = svg.getBBox();
-            const width = bbox.width || svg.width.baseVal.value || 800;
-            const height = bbox.height || svg.height.baseVal.value || 600;
+            var bbox = svg.getBBox();
+            var width = bbox.width || svg.width.baseVal.value || 800;
+            var height = bbox.height || svg.height.baseVal.value || 600;
 
-            // Set dimensions on the clone
             svgClone.setAttribute('width', width);
             svgClone.setAttribute('height', height);
-            svgClone.setAttribute('viewBox', `${bbox.x} ${bbox.y} ${width} ${height}`);
-
-            // Remove problematic attributes
+            svgClone.setAttribute('viewBox', bbox.x + ' ' + bbox.y + ' ' + width + ' ' + height);
             svgClone.removeAttribute('xmlns:xlink');
 
-            // Serialize the SVG
-            const svgData = new XMLSerializer().serializeToString(svgClone);
-            const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData);
+            var svgData = new XMLSerializer().serializeToString(svgClone);
+            var svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData);
 
-            // Create an image element
-            const img = new Image();
-
-            // Wait for the image to load
-            await new Promise((resolve, reject) => {
+            var img = new Image();
+            await new Promise(function(resolve, reject) {
                 img.onload = resolve;
                 img.onerror = reject;
                 img.src = svgDataUrl;
             });
 
-            // Create a canvas with padding
-            const canvas = document.createElement('canvas');
-            const scale = 2; // Higher resolution
-            const canvasWidth = width + (padding * 2);
-            const canvasHeight = height + (padding * 2);
+            var canvas = document.createElement('canvas');
+            var scale = 2;
+            var canvasWidth = width + (padding * 2);
+            var canvasHeight = height + (padding * 2);
             canvas.width = canvasWidth * scale;
             canvas.height = canvasHeight * scale;
 
-            const ctx = canvas.getContext('2d');
+            var ctx = canvas.getContext('2d', { willReadFrequently: false });
             ctx.scale(scale, scale);
 
-            // Fill background if specified
             if (backgroundColor !== 'transparent') {
                 ctx.fillStyle = backgroundColor;
                 ctx.fillRect(0, 0, canvasWidth, canvasHeight);
@@ -106,44 +168,88 @@ var mermaidCopy = (function() {
                 ctx.clearRect(0, 0, canvasWidth, canvasHeight);
             }
 
-            // Draw the image on the canvas with padding offset
             ctx.drawImage(img, padding, padding, width, height);
 
-            // Always use PNG format (clipboard API doesn't support JPEG)
-            const blob = await new Promise((resolve, reject) => {
-                canvas.toBlob((b) => {
+            var format = asJpeg ? 'image/jpeg' : 'image/png';
+            var quality = asJpeg ? 0.95 : undefined;
+            var extension = asJpeg ? 'jpg' : 'png';
+
+            var blob = await new Promise(function(resolve, reject) {
+                canvas.toBlob(function(b) {
                     if (b) resolve(b);
                     else reject(new Error('Failed to create blob'));
-                }, 'image/png');
+                }, format, quality);
             });
 
-            // Copy to clipboard using the Clipboard API
+            if (download) {
+                return downloadBlob(blob, filenamePrefix + '-' + Date.now() + '.' + extension);
+            }
+
             if (navigator.clipboard && window.ClipboardItem) {
-                const clipboardItem = new ClipboardItem({ 'image/png': blob });
+                var clipboardItem = new ClipboardItem({ [format]: blob });
                 await navigator.clipboard.write([clipboardItem]);
                 return true;
-            } else {
-                console.warn('Clipboard API not supported');
-                return false;
             }
+
+            console.warn('Clipboard API not supported, downloading image instead');
+            return downloadBlob(blob, filenamePrefix + '-' + Date.now() + '.' + extension);
         } catch (error) {
             console.error('Failed to export SVG to image:', error);
             return false;
         }
     }
 
-    /**
-     * Add copy button to a mermaid diagram container
-     * @param {HTMLElement} container - The mermaid diagram container element
-     */
+    function exportSvgToPng(svg) {
+        return exportSvgToImage(svg, { asJpeg: false });
+    }
+
+    function downloadSvgToPng(svg, filenamePrefix) {
+        return exportSvgToImage(svg, {
+            asJpeg: false,
+            download: true,
+            filenamePrefix: filenamePrefix || 'diagram'
+        });
+    }
+
+    async function handleDiagramCopyAction(event, options) {
+        var wantsDownload = event.altKey;
+        var wantsSource = event.metaKey || event.ctrlKey;
+        var wantsWhiteBackground = event.shiftKey;
+
+        if (wantsSource) {
+            return wantsDownload
+                ? options.downloadSource()
+                : await copyToClipboard(options.source);
+        }
+
+        if (wantsWhiteBackground) {
+            return await exportSvgToImage(options.svg, {
+                asJpeg: false,
+                backgroundColor: '#ffffff',
+                download: wantsDownload,
+                filenamePrefix: options.imageFilenamePrefix + '-white'
+            });
+        }
+
+        return wantsDownload
+            ? await downloadSvgToPng(options.svg, options.imageFilenamePrefix)
+            : await exportSvgToPng(options.svg);
+    }
+
+    function getDiagramCopyFeedback(event, sourceType) {
+        if (event.altKey) return 'Saved';
+        if (event.metaKey || event.ctrlKey) return 'Copied ' + sourceType;
+        return 'Copied PNG';
+    }
+
     function addCopyButton(container) {
-        // Check if button already exists
         if (container.querySelector('.mermaid-copy-button')) return;
 
-        const svg = container.querySelector('svg');
+        var svg = container.querySelector('svg');
         if (!svg) return;
 
-        const copyButton = document.createElement('button');
+        var source = container.dataset.mermaidSource || '';
+        var copyButton = document.createElement('button');
         copyButton.className = 'mermaid-copy-button';
         copyButton.innerHTML = `
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -152,32 +258,31 @@ var mermaidCopy = (function() {
             </svg>
             <span class="copy-text">Copy</span>
         `;
-        copyButton.title = 'Click: Copy PNG (transparent)\nShift+Click: Copy PNG (white background)';
+        copyButton.title = 'Click copy transparent PNG; Shift copy white PNG; Cmd/Ctrl copy Mermaid source; add Option/Alt to download';
 
-        // Position the container
         container.style.position = 'relative';
         container.appendChild(copyButton);
 
-        // Add click handler
-        copyButton.addEventListener('click', async (event) => {
+        copyButton.addEventListener('click', async function(event) {
             event.preventDefault();
             event.stopPropagation();
 
-            // Shift+Click for white background with padding
-            const useWhiteBg = event.shiftKey;
-
-            const success = await exportSvgToImage(svg, {
-                backgroundColor: useWhiteBg ? '#ffffff' : 'transparent',
-                padding: useWhiteBg ? 40 : 0
+            var success = await handleDiagramCopyAction(event, {
+                svg: svg,
+                source: source,
+                downloadSource: function() {
+                    return downloadTextFile(source, container.id + '-' + Date.now() + '.mmd', 'text/plain');
+                },
+                imageFilenamePrefix: 'mermaid-diagram'
             });
 
             if (success) {
                 copyButton.classList.add('copied');
-                const textSpan = copyButton.querySelector('.copy-text');
-                const originalText = textSpan.textContent;
-                textSpan.textContent = 'Copied!';
+                var textSpan = copyButton.querySelector('.copy-text');
+                var originalText = textSpan.textContent;
+                textSpan.textContent = getDiagramCopyFeedback(event, 'code');
 
-                setTimeout(() => {
+                setTimeout(function() {
                     copyButton.classList.remove('copied');
                     textSpan.textContent = originalText;
                 }, 2000);
@@ -185,24 +290,20 @@ var mermaidCopy = (function() {
         });
     }
 
-    /**
-     * Initialize copy buttons for all mermaid diagrams
-     * Should be called after mermaid diagrams are rendered
-     */
     function initCopyButtons() {
-        // Find all mermaid diagram containers
-        const containers = document.querySelectorAll('[id^="mermaidId"]');
-        containers.forEach(container => {
-            // Wait a bit for SVG to be fully rendered
-            setTimeout(() => addCopyButton(container), 100);
+        var containers = document.querySelectorAll('[id^="mermaidId"].mermaid-rendered');
+        containers.forEach(function(container) {
+            setTimeout(function() {
+                addCopyButton(container);
+            }, 100);
         });
     }
 
-    // Expose functions
     return {
         addCopyButton: addCopyButton,
         initCopyButtons: initCopyButtons,
-        exportSvgToImage: exportSvgToImage
+        exportSvgToImage: exportSvgToImage,
+        copyToClipboard: copyToClipboard,
+        downloadTextFile: downloadTextFile
     };
-
 })();
