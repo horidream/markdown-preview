@@ -12,7 +12,6 @@
 }
 
 [id^="mermaidId"] svg {
-    max-height: 480px;
     height: auto;
     display: block;
     margin: 0 auto;
