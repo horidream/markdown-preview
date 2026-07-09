@@ -1,9 +1,10 @@
 {
 	"dependencies": {
-		"jquery": "^3.6.4",
-		"katex": "^0.16.10",
-		"marked": "^15.0.8",
-		"marked-highlight": "^2.2.1",
+		"@hori/markdown": "file:../mifa/packages/markdown",
+		"jquery": "3.6.4",
+		"katex": "0.16.10",
+		"marked": "15.0.8",
+		"marked-highlight": "2.2.1",
 		"mermaid": "11.15.0"
 	},
 	"scripts": {
@@ -11,6 +12,7 @@
 		"lib": "gulp lib"
 	},
 	"devDependencies": {
+		"esbuild": "0.27.7",
 		"gulp": "^4.0.2",
 		"gulp-rename": "^2.0.0"
 	}

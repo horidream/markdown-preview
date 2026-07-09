@@ -1,8 +1,6 @@
 (function(document) {
     const specialThemePrefix = 'special_'
-    let mpp = {
-        markedLoaded: 0
-    }
+    let mpp = {}
 
     var interval,
         defaultReloadFreq = 3,
@@ -80,30 +78,83 @@
         return k;
     };
 
-    function initMarked() {
-        if (mpp.markedLoaded) {
-            return
+    function slugifyHeading(text) {
+        return String(text || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^\w\u00C0-\uFFFF\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '') || 'heading';
+    }
+
+    function collectHeadings() {
+        var counts = {};
+        toc = [];
+
+        $('h1, h2, h3, h4, h5, h6').each(function() {
+            var heading = this;
+            var text = $(heading).text();
+            var baseId = heading.id || slugifyHeading(text);
+            var count = counts[baseId] || 0;
+            counts[baseId] = count + 1;
+            var id = count ? baseId + '-' + count : baseId;
+
+            heading.id = id;
+            toc.push({
+                anchor: id,
+                level: parseInt(heading.tagName.substring(1), 10),
+                text: text
+            });
+        });
+    }
+
+    function prependTableOfContents() {
+        if (!toc.length) {
+            return;
         }
 
-        marked.setOptions(config.markedOptions);
-        marked.use(markedHighlight({
-          langPrefix: 'hljs language-',
-          highlight(code, lang) {
-            // If a language is specified, use it
-            if (lang && hljs.getLanguage(lang)) {
-              try {
-                return hljs.highlight(code, { language: lang }).value;
-              } catch (err) {
-                // Fall back to auto-detection if specified language fails
-                return hljs.highlightAuto(code).value;
-              }
-            }
-            // Auto-detect language for code blocks without specified language
-            return hljs.highlightAuto(code).value;
-          }
-        }));
+        var ctx = [];
+        ctx.push('<div class="toc-list"><h1 id="table-of-contents">Table of Contents</h1>\n<ul>');
+        buildCtx(toc, 0, 0, ctx);
+        ctx.push("</ul></div>");
+        $(document.body).prepend(ctx.join(''));
+    }
 
-        mpp.markedLoaded = true
+    function normalizeSharedMarkdownResult(result) {
+        if (typeof result === 'string') {
+            return { html: result, mermaidBlocks: [], svgBlocks: [] };
+        }
+        return {
+            html: result && result.html ? result.html : '',
+            mermaidBlocks: result && result.mermaidBlocks ? result.mermaidBlocks : [],
+            svgBlocks: result && result.svgBlocks ? result.svgBlocks : []
+        };
+    }
+
+    function renderSharedVisualBlocks(result) {
+        result.mermaidBlocks.forEach(function(block) {
+            var node = document.getElementById(block.id);
+            if (!node) return;
+            node.textContent = block.content;
+            node.dataset.mermaidSource = block.content;
+        });
+
+        result.svgBlocks.forEach(function(block) {
+            var node = document.getElementById(block.id);
+            if (!node) return;
+            node.innerHTML = DOMPurify.sanitize(block.content, {
+                USE_PROFILES: { svg: true, svgFilters: true }
+            });
+        });
+    }
+
+    function parseMarkdown(data) {
+        if (!window.horiMarkdown || typeof window.horiMarkdown.parseMarkdown !== 'function') {
+            throw new Error('@hori/markdown bundle is not loaded');
+        }
+
+        return normalizeSharedMarkdownResult(window.horiMarkdown.parseMarkdown(data));
     }
 
     // Onload, take the DOM of the page, get the markdown formatted text out and
@@ -118,42 +169,21 @@
                 preHtml = diagramFlowSeq.prepareDiagram(preHtml);
             }
 
-            if (items.toc) {
-                toc = [];
-                const renderer = new marked.Renderer()
-                const slugger = new marked.Slugger()
-                const r = {
-                  heading: renderer.heading.bind(renderer),
-                };
-
-                renderer.heading = (text, level, raw, slugger) => {
-                    var anchor = config.markedOptions.headerPrefix + slugger.serialize(raw)
-
-                    toc.push({
-                        anchor: anchor,
-                        level: level,
-                        text: text
-                    });
-
-                    return r.heading(text, level, raw, slugger);
-                };
-                config.markedOptions.renderer = renderer;
-            }
-
-            initMarked()
-            var html = marked.parse(preHtml);
-            html = DOMPurify.sanitize(html, {
+            var renderResult = parseMarkdown(preHtml);
+            var html = DOMPurify.sanitize(renderResult.html, {
                 ADD_ATTR: ['flow'],
                 SANITIZE_DOM: false
             });
-            if (items.toc) {
-                var ctx = [];
-                ctx.push('<div class="toc-list"><h1 id="table-of-contents">Table of Contents</h1>\n<ul>');
-                buildCtx(toc, 0, 0, ctx);
-                ctx.push("</ul></div>");
-                html = ctx.join('') + html
-            }
             $(document.body).html(html);
+            $(document.body).addClass('hori-markdown markdown-content');
+            renderSharedVisualBlocks(renderResult);
+            if (items.toc) {
+                collectHeadings();
+                prependTableOfContents();
+            }
+            if (window.horiMarkdown && typeof window.horiMarkdown.highlightCodeBlocks === 'function') {
+                window.horiMarkdown.highlightCodeBlocks(document.body);
+            }
             $('img').on("error", () => resolveImg(this));
             diagramFlowSeq.drawAllMermaid();
             postRender();

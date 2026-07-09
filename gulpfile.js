@@ -1,7 +1,25 @@
 const gulp = require('gulp');
 const rename = require('gulp-rename')
+const esbuild = require('esbuild')
 
 gulp.task('lib', function () {
+  esbuild.buildSync({
+    entryPoints: ['src/hori-markdown-entry.js'],
+    bundle: true,
+    format: 'iife',
+    globalName: 'HoriMarkdownBundle',
+    outfile: 'js/hori-markdown.bundle.js',
+    platform: 'browser',
+    target: ['chrome110'],
+    loader: {
+      '.woff': 'file',
+      '.woff2': 'file',
+      '.ttf': 'file'
+    },
+    assetNames: '../css/fonts/[name]',
+    logLevel: 'info'
+  })
+
   gulp.src(['node_modules/marked-highlight/lib/index.cjs'])
     .pipe(rename('index.js'))
     .pipe(gulp.dest('js/marked-highlight'))
@@ -21,4 +39,3 @@ gulp.task('lib', function () {
     'node_modules/katex/dist/katex.min.js'
   ]).pipe(gulp.dest('js'));
 });
-

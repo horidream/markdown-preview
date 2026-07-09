@@ -211,6 +211,13 @@ async function drawAllMermaid() {
         var mermaidId = makeMermaidId(i);
         await drawMermaid(mermaidId);
     }
+    var sharedMermaidBlocks = document.querySelectorAll('.mermaid-diagram[data-mermaid="true"]');
+    for (var j = 0; j < sharedMermaidBlocks.length; j++) {
+        if (!sharedMermaidBlocks[j].id) {
+            sharedMermaidBlocks[j].id = genNextMermaidDivId();
+        }
+        await drawMermaid(sharedMermaidBlocks[j].id);
+    }
     // Initialize copy buttons after all diagrams are rendered
     if (typeof mermaidCopy !== 'undefined') {
         mermaidCopy.initCopyButtons();

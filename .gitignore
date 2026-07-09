@@ -3,6 +3,7 @@
 .tern-project
 build
 node_modules
+.pnpm-store
 package.lock.json
 pnpm-lock.yaml
 .idea

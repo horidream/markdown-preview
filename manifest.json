@@ -31,6 +31,7 @@
             "css": [
                 "css/MarkdownTOC.css",
                 "css/highlight.css",
+                "js/hori-markdown.bundle.css",
                 "css/mermaid-copy.css",
                 "css/print.css"
             ],
@@ -42,6 +43,7 @@
                 "js/marked-highlight/index.js",
                 "js/purify.js",
                 "js/highlight.min.js",
+                "js/hori-markdown.bundle.js",
                 "js/markdownify.js",
                 "js/underscore-min.js",
                 "js/mermaid.min.js",
