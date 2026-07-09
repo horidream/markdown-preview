@@ -152,6 +152,16 @@ function normalizeMermaidSource(src) {
     return decodeHtmlEntities(src || '').replace(/\r\n?/g, '\n').trim();
 }
 
+function removeInlineSvgMaxWidth(container) {
+    var svgs = container.querySelectorAll('svg');
+    svgs.forEach(function(svg) {
+        svg.style.removeProperty('max-width');
+        if (!svg.getAttribute('style')) {
+            svg.removeAttribute('style');
+        }
+    });
+}
+
 async function renderMermaidWithRun(divMermaid, id, txt) {
     var graphDiv = document.createElement('div');
     graphDiv.id = 'mermaidGraph-' + id;
@@ -166,6 +176,8 @@ async function renderMermaidWithRun(divMermaid, id, txt) {
         nodes: [graphDiv],
         suppressErrors: false
     });
+
+    removeInlineSvgMaxWidth(divMermaid);
 }
 
 async function drawMermaid(id) {
