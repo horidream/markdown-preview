@@ -163,12 +163,12 @@ async function renderMermaidWithRun(divMermaid, id, txt) {
     divMermaid.appendChild(graphDiv);
 
     await mermaid.run({
-        querySelector: '#' + graphDiv.id,
+        nodes: [graphDiv],
         suppressErrors: false
     });
 }
 
-function drawMermaid(id) {
+async function drawMermaid(id) {
     initMermaid();
     var divMermaid = document.getElementById(id);
     if (!divMermaid) return;
@@ -176,36 +176,32 @@ function drawMermaid(id) {
     var txt = normalizeMermaidSource(divMermaid.textContent || divMermaid.innerHTML);
     if (!txt || !txt.trim()) return;
 
-    (async () => {
-        try {
-            divMermaid.classList.remove('mermaid-rendered', 'mermaid-error');
-            divMermaid.classList.add('mermaid-loading');
-            await renderMermaidWithRun(divMermaid, id, txt);
-            divMermaid.classList.remove('mermaid-loading');
-            divMermaid.classList.add('mermaid-rendered');
-        } catch (e) {
-            console.error('Mermaid render error:', e);
-            divMermaid.classList.remove('mermaid-loading', 'mermaid-rendered');
-            divMermaid.classList.add('mermaid-error');
-            divMermaid.innerHTML = '<pre style="color: red;">Mermaid Error: ' + e.message + '</pre><pre>' + txt + '</pre>';
-        }
-    })();
+    try {
+        divMermaid.classList.remove('mermaid-rendered', 'mermaid-error');
+        divMermaid.classList.add('mermaid-loading');
+        await renderMermaidWithRun(divMermaid, id, txt);
+        divMermaid.classList.remove('mermaid-loading');
+        divMermaid.classList.add('mermaid-rendered');
+    } catch (e) {
+        console.error('Mermaid render error:', e);
+        divMermaid.classList.remove('mermaid-loading', 'mermaid-rendered');
+        divMermaid.classList.add('mermaid-error');
+        divMermaid.innerHTML = '<pre style="color: red;">Mermaid Error: ' + e.message + '</pre><pre>' + txt + '</pre>';
+    }
 }
 
 function resetDivId() {
     diagramFlowSeq.mermaidDivId = 0;
 }
 
-function drawAllMermaid() {
+async function drawAllMermaid() {
     for (var i = 1; i <= diagramFlowSeq.mermaidDivId; ++i) {
         var mermaidId = makeMermaidId(i);
-        drawMermaid(mermaidId);
+        await drawMermaid(mermaidId);
     }
     // Initialize copy buttons after all diagrams are rendered
     if (typeof mermaidCopy !== 'undefined') {
-        setTimeout(function() {
-            mermaidCopy.initCopyButtons();
-        }, 200);
+        mermaidCopy.initCopyButtons();
     }
 }
 
