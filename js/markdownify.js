@@ -6,6 +6,7 @@
         defaultReloadFreq = 3,
         previousText,
         originalMarkdownText,
+        detachVisualPreviews,
         toc = [],
         storage = chrome.storage.local;
 
@@ -140,12 +141,27 @@
             node.dataset.mermaidSource = block.content;
         });
 
-        result.svgBlocks.forEach(function(block) {
-            var node = document.getElementById(block.id);
-            if (!node) return;
-            node.innerHTML = DOMPurify.sanitize(block.content, {
-                USE_PROFILES: { svg: true, svgFilters: true }
-            });
+        if (window.horiMarkdown && typeof window.horiMarkdown.renderSvgBlocks === 'function') {
+            window.horiMarkdown.renderSvgBlocks(result.svgBlocks, document.body);
+        }
+    }
+
+    function refreshVisualPreviews() {
+        if (!window.horiMarkdown ||
+            typeof window.horiMarkdown.attachVisualPreviews !== 'function') {
+            return;
+        }
+
+        if (detachVisualPreviews) {
+            detachVisualPreviews();
+        }
+        detachVisualPreviews = window.horiMarkdown.attachVisualPreviews(document.body, {
+            diagramSelector: [
+                '[id^="mermaidId"].mermaid-rendered',
+                '.mermaid-diagram.mermaid-rendered',
+                '.svg-diagram.rendered',
+                '[data-markdown-visual="diagram"]'
+            ].join(', ')
         });
     }
 
@@ -160,7 +176,7 @@
     // Onload, take the DOM of the page, get the markdown formatted text out and
     // apply the converter.
     function makeHtml(data) {
-        storage.get(['supportMath', 'katex', 'toc'], function(items) {
+        storage.get(['supportMath', 'katex', 'toc'], async function(items) {
             console.log(items)
             // Convert MarkDown to HTML
             var preHtml = data;
@@ -185,7 +201,8 @@
                 window.horiMarkdown.highlightCodeBlocks(document.body);
             }
             $('img').on("error", () => resolveImg(this));
-            diagramFlowSeq.drawAllMermaid();
+            await diagramFlowSeq.drawAllMermaid();
+            refreshVisualPreviews();
             postRender();
         });
     }

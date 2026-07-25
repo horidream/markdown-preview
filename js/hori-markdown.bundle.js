@@ -20574,12 +20574,733 @@ Please report this to https://github.com/markedjs/marked.`, e) {
     });
   }
 
+  // node_modules/.pnpm/@hori+markdown@file+..+mifa+packages+markdown/node_modules/@hori/markdown/src/svg.js
+  var SVG_ALLOWED_TAGS = /* @__PURE__ */ new Set([
+    "svg",
+    "g",
+    "path",
+    "rect",
+    "circle",
+    "ellipse",
+    "line",
+    "polyline",
+    "polygon",
+    "text",
+    "tspan",
+    "defs",
+    "marker",
+    "lineargradient",
+    "radialgradient",
+    "stop",
+    "pattern",
+    "clippath",
+    "title",
+    "desc"
+  ]);
+  var SVG_ALLOWED_ATTRS = /* @__PURE__ */ new Set([
+    "xmlns",
+    "viewbox",
+    "role",
+    "aria-label",
+    "aria-labelledby",
+    "id",
+    "class",
+    "x",
+    "y",
+    "x1",
+    "y1",
+    "x2",
+    "y2",
+    "cx",
+    "cy",
+    "r",
+    "rx",
+    "ry",
+    "width",
+    "height",
+    "d",
+    "points",
+    "transform",
+    "fill",
+    "fill-opacity",
+    "fill-rule",
+    "stroke",
+    "stroke-width",
+    "stroke-linecap",
+    "stroke-linejoin",
+    "stroke-dasharray",
+    "stroke-opacity",
+    "opacity",
+    "font-family",
+    "font-size",
+    "font-weight",
+    "text-anchor",
+    "dominant-baseline",
+    "letter-spacing",
+    "marker-start",
+    "marker-mid",
+    "marker-end",
+    "markerwidth",
+    "markerheight",
+    "refx",
+    "refy",
+    "orient",
+    "gradientunits",
+    "gradienttransform",
+    "offset",
+    "stop-color",
+    "stop-opacity",
+    "patternunits",
+    "patterncontentunits",
+    "clip-path"
+  ]);
+  var SVG_INTERNAL_REF_ATTRS = /* @__PURE__ */ new Set(["href", "xlink:href"]);
+  function isSafeSvgAttrValue(value = "") {
+    const normalized = String(value).trim().toLowerCase();
+    if (!normalized) return true;
+    if (normalized.includes("javascript:") || normalized.includes("data:text/html")) return false;
+    if (/url\s*\(\s*['"]?(?!#)/i.test(value)) return false;
+    if (/https?:\/\//i.test(value)) return false;
+    return true;
+  }
+  function sanitizeSvg(source, options = {}) {
+    const ownerDocument = options.document || globalThis.document;
+    const Parser2 = ownerDocument?.defaultView?.DOMParser || globalThis.DOMParser;
+    const Serializer = ownerDocument?.defaultView?.XMLSerializer || globalThis.XMLSerializer;
+    try {
+      const raw = String(source || "").trim();
+      if (!raw) return { svg: "", error: "SVG block is empty" };
+      if (!Parser2 || !Serializer) return { svg: "", error: "SVG parsing is unavailable" };
+      const doc = new Parser2().parseFromString(raw, "image/svg+xml");
+      const parseError = doc.querySelector("parsererror");
+      if (parseError) return { svg: "", error: parseError.textContent || "Invalid SVG syntax" };
+      const root = doc.documentElement;
+      if (!root || root.tagName.toLowerCase() !== "svg") {
+        return { svg: "", error: "SVG block must contain a single <svg> root element" };
+      }
+      const sanitizeElement = (element) => {
+        if (!SVG_ALLOWED_TAGS.has(element.tagName.toLowerCase())) {
+          element.remove();
+          return;
+        }
+        for (const attr of Array.from(element.attributes)) {
+          const name = attr.name.toLowerCase();
+          if (name.startsWith("on")) {
+            element.removeAttribute(attr.name);
+          } else if (SVG_INTERNAL_REF_ATTRS.has(name)) {
+            if (!attr.value.trim().startsWith("#")) element.removeAttribute(attr.name);
+          } else if (!SVG_ALLOWED_ATTRS.has(name) || !isSafeSvgAttrValue(attr.value)) {
+            element.removeAttribute(attr.name);
+          }
+        }
+        Array.from(element.children).forEach(sanitizeElement);
+      };
+      sanitizeElement(root);
+      root.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      if (!root.getAttribute("viewBox") && !root.getAttribute("viewbox")) {
+        return { svg: "", error: "SVG must include a viewBox for responsive rendering" };
+      }
+      return { svg: new Serializer().serializeToString(root) };
+    } catch (error) {
+      return { svg: "", error: error?.message || "Failed to sanitize SVG" };
+    }
+  }
+  function renderSvgBlocks(blocks, container) {
+    if (!container || !Array.isArray(blocks)) return;
+    for (const block of blocks) {
+      const element = container.querySelector(`#${block.id}`);
+      if (!element) continue;
+      const result = sanitizeSvg(block.content, { document: container.ownerDocument });
+      if (result.error) {
+        element.classList.add("error");
+        element.textContent = `Error rendering SVG: ${result.error}`;
+        continue;
+      }
+      element.innerHTML = result.svg;
+      element.classList.remove("loading", "error");
+      element.classList.add("rendered");
+      element.dataset.markdownVisual = "diagram";
+      element.dataset.diagramType = "svg";
+      element.dataset.svgSource = result.svg;
+    }
+  }
+
+  // node_modules/.pnpm/@hori+markdown@file+..+mifa+packages+markdown/node_modules/@hori/markdown/src/visual-export.js
+  function getWindow(ownerDocument) {
+    return ownerDocument?.defaultView || globalThis.window;
+  }
+  async function copyText(text2, ownerDocument = globalThis.document) {
+    const ownerWindow = getWindow(ownerDocument);
+    if (ownerWindow?.navigator?.clipboard?.writeText && ownerWindow.isSecureContext) {
+      try {
+        await ownerWindow.navigator.clipboard.writeText(text2);
+        return true;
+      } catch (error) {
+        console.warn("Clipboard text copy failed; trying fallback:", error);
+      }
+    }
+    const textarea = ownerDocument?.createElement("textarea");
+    if (!textarea) return false;
+    textarea.value = text2;
+    textarea.readOnly = true;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-999999px";
+    ownerDocument.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    try {
+      return Boolean(ownerDocument.execCommand?.("copy"));
+    } catch (error) {
+      console.error("Fallback text copy failed:", error);
+      return false;
+    } finally {
+      textarea.remove();
+    }
+  }
+  function downloadBlob(blob, filename, ownerDocument = globalThis.document) {
+    const ownerWindow = getWindow(ownerDocument);
+    try {
+      const url = ownerWindow.URL.createObjectURL(blob);
+      const anchor = ownerDocument.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      ownerDocument.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      ownerWindow.URL.revokeObjectURL(url);
+      return true;
+    } catch (error) {
+      console.error("File download failed:", error);
+      return false;
+    }
+  }
+  function downloadText(text2, filename, type = "text/plain", ownerDocument = globalThis.document) {
+    const BlobConstructor = getWindow(ownerDocument)?.Blob || globalThis.Blob;
+    return downloadBlob(new BlobConstructor([text2], { type }), filename, ownerDocument);
+  }
+  function inlineComputedStyles(original, clone, ownerWindow) {
+    const properties = [
+      "rx",
+      "ry",
+      "stroke",
+      "stroke-width",
+      "fill",
+      "opacity",
+      "stroke-opacity",
+      "fill-opacity",
+      "stroke-dasharray",
+      "stroke-linecap",
+      "stroke-linejoin",
+      "font-family",
+      "font-size",
+      "font-weight"
+    ];
+    const originals = [original, ...original.querySelectorAll("*")];
+    const clones = [clone, ...clone.querySelectorAll("*")];
+    originals.forEach((element, index) => {
+      const clonedElement = clones[index];
+      if (!clonedElement) return;
+      const computed = ownerWindow.getComputedStyle(element);
+      properties.forEach((property) => {
+        const value = computed.getPropertyValue(property);
+        if (value && value !== "none" && value !== "auto") {
+          clonedElement.style.setProperty(property, value);
+        }
+      });
+    });
+  }
+  function getSvgBounds(svg) {
+    try {
+      const box = svg.getBBox();
+      if (box.width > 0 && box.height > 0) return box;
+    } catch {
+    }
+    const viewBox = svg.viewBox?.baseVal;
+    if (viewBox?.width > 0 && viewBox?.height > 0) {
+      return { x: viewBox.x, y: viewBox.y, width: viewBox.width, height: viewBox.height };
+    }
+    const viewBoxParts = (svg.getAttribute("viewBox") || "").split(/[\s,]+/).map(Number);
+    if (viewBoxParts.length === 4 && viewBoxParts.every(Number.isFinite)) {
+      return { x: viewBoxParts[0], y: viewBoxParts[1], width: viewBoxParts[2], height: viewBoxParts[3] };
+    }
+    const rect = svg.getBoundingClientRect();
+    return {
+      x: 0,
+      y: 0,
+      width: rect.width || Number.parseFloat(svg.getAttribute("width")) || 800,
+      height: rect.height || Number.parseFloat(svg.getAttribute("height")) || 600
+    };
+  }
+  async function svgToBlob(svg, options = {}) {
+    const ownerDocument = svg.ownerDocument;
+    const ownerWindow = getWindow(ownerDocument);
+    const {
+      backgroundColor = "transparent",
+      padding = backgroundColor === "transparent" ? 0 : 40,
+      scale = 2
+    } = options;
+    const clone = svg.cloneNode(true);
+    const bounds = getSvgBounds(svg);
+    inlineComputedStyles(svg, clone, ownerWindow);
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clone.setAttribute("width", String(bounds.width));
+    clone.setAttribute("height", String(bounds.height));
+    clone.setAttribute("viewBox", `${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}`);
+    clone.removeAttribute("xmlns:xlink");
+    const Serializer = ownerWindow.XMLSerializer || globalThis.XMLSerializer;
+    const markup = new Serializer().serializeToString(clone);
+    const image = new ownerWindow.Image();
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = reject;
+      image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(markup)}`;
+    });
+    const canvas = ownerDocument.createElement("canvas");
+    const width = bounds.width + padding * 2;
+    const height = bounds.height + padding * 2;
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Canvas rendering is unavailable");
+    context.scale(scale, scale);
+    if (backgroundColor !== "transparent") {
+      context.fillStyle = backgroundColor;
+      context.fillRect(0, 0, width, height);
+    } else {
+      context.clearRect(0, 0, width, height);
+    }
+    context.drawImage(image, padding, padding, bounds.width, bounds.height);
+    return await new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Failed to create PNG")), "image/png");
+    });
+  }
+  async function exportSvg(svg, options = {}) {
+    try {
+      const ownerDocument = svg.ownerDocument;
+      const ownerWindow = getWindow(ownerDocument);
+      const {
+        backgroundColor = "transparent",
+        download = false,
+        filenamePrefix = "diagram"
+      } = options;
+      const blob = await svgToBlob(svg, { backgroundColor });
+      const suffix = backgroundColor === "transparent" ? "" : "-white";
+      const filename = `${filenamePrefix}${suffix}-${Date.now()}.png`;
+      if (download) return downloadBlob(blob, filename, ownerDocument);
+      if (ownerWindow.navigator?.clipboard?.write && ownerWindow.ClipboardItem) {
+        await ownerWindow.navigator.clipboard.write([
+          new ownerWindow.ClipboardItem({ "image/png": blob })
+        ]);
+        return true;
+      }
+      return downloadBlob(blob, filename, ownerDocument);
+    } catch (error) {
+      console.error("Diagram image export failed:", error);
+      return false;
+    }
+  }
+  async function performDiagramCopyAction(diagram, event, options = {}) {
+    const svg = diagram?.querySelector("svg");
+    if (!svg) return false;
+    const type = diagram.dataset.diagramType || (diagram.matches(".mermaid-diagram, .mermaid-container") ? "mermaid" : "svg");
+    const source = type === "mermaid" ? diagram.dataset.mermaidSource || "" : diagram.dataset.svgSource || svg.outerHTML;
+    const wantsSource = event.metaKey || event.ctrlKey;
+    const wantsDownload = options.download !== false && event.altKey;
+    if (wantsSource) {
+      if (!source) return false;
+      const extension = type === "mermaid" ? "mmd" : "svg";
+      const mimeType = type === "mermaid" ? "text/plain" : "image/svg+xml";
+      return wantsDownload ? downloadText(source, `${type}-diagram-${Date.now()}.${extension}`, mimeType, svg.ownerDocument) : copyText(source, svg.ownerDocument);
+    }
+    return exportSvg(svg, {
+      backgroundColor: event.shiftKey ? "#ffffff" : "transparent",
+      download: wantsDownload,
+      filenamePrefix: `${type}-diagram`
+    });
+  }
+
+  // node_modules/.pnpm/@hori+markdown@file+..+mifa+packages+markdown/node_modules/@hori/markdown/src/visuals.js
+  var MIN_SCALE = 0.15;
+  var MAX_SCALE = 8;
+  var CLICK_ZOOM_FACTOR = 1.25;
+  var activeViewers = /* @__PURE__ */ new WeakMap();
+  var viewerMarkup = `
+  <div class="hori-visual-viewer visual-viewer" role="dialog" aria-modal="true" aria-label="Visual preview">
+    <div class="hori-visual-viewer__toolbar viewer-toolbar">
+      <button type="button" class="viewer-button" data-action="zoom-out" title="Zoom out" aria-label="Zoom out">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path></svg>
+      </button>
+      <button type="button" class="viewer-button" data-action="reset" title="Reset view" aria-label="Reset view">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 4v6h6"></path><path d="M20 20v-6h-6"></path>
+          <path d="M20 9A8 8 0 0 0 6.3 5.3L4 7.6"></path>
+          <path d="M4 15a8 8 0 0 0 13.7 3.7L20 16.4"></path>
+        </svg>
+      </button>
+      <button type="button" class="viewer-button" data-action="zoom-in" title="Zoom in" aria-label="Zoom in">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+      </button>
+      <button type="button" class="viewer-button" data-action="close" title="Close" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+      </button>
+    </div>
+    <div class="hori-visual-viewer__surface viewer-surface" tabindex="-1">
+      <div class="hori-visual-viewer__content viewer-content"></div>
+    </div>
+  </div>
+`;
+  function clampScale(value) {
+    return Math.min(MAX_SCALE, Math.max(MIN_SCALE, value));
+  }
+  function serializeSvg(svg, { isMermaid = false } = {}) {
+    const clone = svg.cloneNode(true);
+    const viewBox = svg.getAttribute("viewBox") || clone.getAttribute("viewBox");
+    const rawWidth = svg.getAttribute("width") || "";
+    const rawHeight = svg.getAttribute("height") || "";
+    let width = rawWidth.includes("%") ? NaN : Number.parseFloat(rawWidth);
+    let height = rawHeight.includes("%") ? NaN : Number.parseFloat(rawHeight);
+    const rect = svg.getBoundingClientRect?.();
+    if (!Number.isFinite(width) || width <= 0) width = rect?.width || 0;
+    if (!Number.isFinite(height) || height <= 0) height = rect?.height || 0;
+    if ((!width || !height) && viewBox) {
+      const parts = viewBox.split(/[\s,]+/).map(Number).filter(Number.isFinite);
+      if (parts.length === 4) {
+        width ||= parts[2];
+        height ||= parts[3];
+      }
+    }
+    if (width > 0) clone.setAttribute("width", String(Math.ceil(width)));
+    if (height > 0) clone.setAttribute("height", String(Math.ceil(height)));
+    if (viewBox && !clone.getAttribute("viewBox")) clone.setAttribute("viewBox", viewBox);
+    if (!clone.getAttribute("xmlns")) clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    if (isMermaid) clone.setAttribute("data-diagram-type", "mermaid");
+    clone.style.maxWidth = "none";
+    clone.style.width = width > 0 ? `${Math.ceil(width)}px` : "";
+    clone.style.height = height > 0 ? `${Math.ceil(height)}px` : "";
+    return new XMLSerializer().serializeToString(clone);
+  }
+  function createViewer(ownerDocument, mountTarget) {
+    const host = ownerDocument.createElement("div");
+    host.innerHTML = viewerMarkup;
+    const element = host.firstElementChild;
+    const surface = element.querySelector(".hori-visual-viewer__surface");
+    const content = element.querySelector(".hori-visual-viewer__content");
+    const pointers = /* @__PURE__ */ new Map();
+    let scale = 1;
+    let translateX = 0;
+    let translateY = 0;
+    let lastPoint = null;
+    let lastDistance = null;
+    let pointerStart = null;
+    let pointerDownTarget = null;
+    const applyTransform = () => {
+      content.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+    };
+    const reset = () => {
+      scale = 1;
+      translateX = 0;
+      translateY = 0;
+      applyTransform();
+    };
+    const zoomAt = (factor, clientX, clientY) => {
+      const rect = surface.getBoundingClientRect();
+      const originX = clientX - rect.left - rect.width / 2;
+      const originY = clientY - rect.top - rect.height / 2;
+      const nextScale = clampScale(scale * factor);
+      const effectiveFactor = nextScale / scale;
+      scale = nextScale;
+      translateX = originX - (originX - translateX) * effectiveFactor;
+      translateY = originY - (originY - translateY) * effectiveFactor;
+      applyTransform();
+    };
+    const close2 = () => {
+      element.remove();
+      ownerDocument.removeEventListener("keydown", handleKeydown);
+      if (activeViewers.get(ownerDocument)?.element === element) {
+        activeViewers.delete(ownerDocument);
+      }
+    };
+    const handleKeydown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close2();
+      } else if ((event.metaKey || event.ctrlKey) && event.key === "0") {
+        event.preventDefault();
+        reset();
+      }
+    };
+    element.addEventListener("click", (event) => {
+      const action = event.target.closest?.("[data-action]")?.dataset.action;
+      if (!action) return;
+      if (action === "close") close2();
+      if (action === "reset") reset();
+      if (action === "zoom-in" || action === "zoom-out") {
+        const rect = surface.getBoundingClientRect();
+        zoomAt(action === "zoom-in" ? 1.05 : 0.95, rect.left + rect.width / 2, rect.top + rect.height / 2);
+      }
+    });
+    surface.addEventListener("wheel", (event) => {
+      event.preventDefault();
+      if (event.ctrlKey) {
+        zoomAt(event.deltaY < 0 ? 1.025 : 0.975, event.clientX, event.clientY);
+      } else {
+        translateX -= event.deltaX;
+        translateY -= event.deltaY;
+        applyTransform();
+      }
+    }, { passive: false });
+    surface.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      surface.setPointerCapture?.(event.pointerId);
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      lastPoint = { x: event.clientX, y: event.clientY };
+      pointerStart = { x: event.clientX, y: event.clientY };
+      pointerDownTarget = event.target;
+      surface.classList.add("is-dragging");
+    });
+    surface.addEventListener("pointermove", (event) => {
+      if (!pointers.has(event.pointerId)) return;
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      const active = Array.from(pointers.values());
+      if (active.length >= 2) {
+        const distance = Math.hypot(active[0].x - active[1].x, active[0].y - active[1].y);
+        if (lastDistance) {
+          const midpoint = {
+            x: (active[0].x + active[1].x) / 2,
+            y: (active[0].y + active[1].y) / 2
+          };
+          zoomAt(distance / lastDistance, midpoint.x, midpoint.y);
+        }
+        lastDistance = distance;
+        return;
+      }
+      if (lastPoint) {
+        translateX += event.clientX - lastPoint.x;
+        translateY += event.clientY - lastPoint.y;
+        applyTransform();
+        lastPoint = { x: event.clientX, y: event.clientY };
+      }
+    });
+    const finishPointer = (event) => {
+      const moved = pointerStart ? Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) > 4 : true;
+      pointers.delete(event.pointerId);
+      lastDistance = null;
+      lastPoint = pointers.size ? Array.from(pointers.values())[0] : null;
+      if (!pointers.size) {
+        surface.classList.remove("is-dragging");
+        if (!moved) {
+          if (pointerDownTarget?.closest?.(".hori-visual-viewer__content")) {
+            zoomAt(event.shiftKey ? 1 / CLICK_ZOOM_FACTOR : CLICK_ZOOM_FACTOR, event.clientX, event.clientY);
+          } else {
+            close2();
+          }
+        }
+        pointerStart = null;
+        pointerDownTarget = null;
+      }
+    };
+    surface.addEventListener("pointerup", finishPointer);
+    surface.addEventListener("pointercancel", finishPointer);
+    mountTarget.appendChild(element);
+    ownerDocument.addEventListener("keydown", handleKeydown);
+    surface.focus();
+    reset();
+    const viewer = { element, content, close: close2 };
+    activeViewers.set(ownerDocument, viewer);
+    return viewer;
+  }
+  function openVisualPreview(options) {
+    const {
+      type,
+      src = "",
+      svgMarkup = "",
+      alt = "",
+      document: ownerDocument = globalThis.document,
+      mountTarget = ownerDocument?.body
+    } = options || {};
+    if (!ownerDocument || !mountTarget) return null;
+    activeViewers.get(ownerDocument)?.close();
+    const viewer = createViewer(ownerDocument, mountTarget);
+    if (type === "image") {
+      const image = ownerDocument.createElement("img");
+      image.className = "hori-visual-viewer__image viewer-image";
+      image.src = src;
+      image.alt = alt;
+      image.draggable = false;
+      viewer.content.appendChild(image);
+    } else {
+      const svgContainer = ownerDocument.createElement("div");
+      svgContainer.className = "hori-visual-viewer__svg viewer-svg";
+      svgContainer.innerHTML = svgMarkup;
+      viewer.content.appendChild(svgContainer);
+    }
+    return viewer;
+  }
+  function findDiagram(target, container, diagramSelector) {
+    const diagram = target.closest?.(diagramSelector);
+    return diagram && container.contains(diagram) ? diagram : null;
+  }
+  function openDiagram(diagram, ownerDocument, mountTarget) {
+    const svg = diagram?.querySelector("svg");
+    if (!svg) return null;
+    return openVisualPreview({
+      type: "svg",
+      svgMarkup: serializeSvg(svg, {
+        isMermaid: diagram.matches('.mermaid-diagram, .mermaid-container, .mermaid-rendered, [data-diagram-type="mermaid"]')
+      }),
+      document: ownerDocument,
+      mountTarget
+    });
+  }
+  function attachVisualPreviews(container, options = {}) {
+    if (!container) return () => {
+    };
+    const {
+      imageSelector = "img",
+      diagramSelector = '.mermaid-diagram.rendered, .svg-diagram.rendered, [data-markdown-visual="diagram"]',
+      mountTarget = container.ownerDocument?.body,
+      preview = true,
+      copy = true,
+      download = true
+    } = options;
+    const ownerDocument = container.ownerDocument || globalThis.document;
+    const enhanceImages = () => {
+      container.querySelectorAll(imageSelector).forEach((image) => {
+        image.dataset.horiVisualPreview = "image";
+        if (!image.getAttribute("loading")) image.setAttribute("loading", "lazy");
+        if (!image.getAttribute("decoding")) image.setAttribute("decoding", "async");
+        if (!image.getAttribute("fetchpriority")) image.setAttribute("fetchpriority", "low");
+      });
+    };
+    const enhanceDiagrams = () => {
+      container.querySelectorAll(diagramSelector).forEach((diagram) => {
+        if (!diagram.querySelector("svg")) return;
+        const type = diagram.dataset.diagramType || (diagram.matches(".mermaid-diagram, .mermaid-container, .mermaid-rendered") ? "mermaid" : "svg");
+        if (diagram.dataset.markdownVisual !== "diagram") diagram.dataset.markdownVisual = "diagram";
+        if (diagram.dataset.diagramType !== type) diagram.dataset.diagramType = type;
+        if (diagram.querySelector(".hori-diagram-actions, .mermaid-diagram-actions, .svg-diagram-actions")) return;
+        const actions = ownerDocument.createElement("div");
+        actions.className = `hori-diagram-actions ${type === "mermaid" ? "mermaid-diagram-actions" : "svg-diagram-actions"}`;
+        if (preview) {
+          const previewButton = ownerDocument.createElement("button");
+          previewButton.type = "button";
+          previewButton.className = "hori-visual-preview-button diagram-preview-button";
+          previewButton.title = "Preview diagram";
+          previewButton.setAttribute("aria-label", "Preview diagram");
+          previewButton.innerHTML = `
+          <svg class="hori-diagram-action-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.3-4.3"></path>
+            <path d="M11 8v6"></path>
+            <path d="M8 11h6"></path>
+          </svg>
+        `;
+          actions.appendChild(previewButton);
+        }
+        if (copy) {
+          const copyButton = ownerDocument.createElement("button");
+          const sourceLabel = type === "mermaid" ? "Mermaid source" : "SVG source";
+          copyButton.type = "button";
+          copyButton.className = `hori-diagram-copy-button ${type === "mermaid" ? "mermaid-copy-button" : "svg-diagram-button"}`;
+          copyButton.title = `Click copy transparent PNG; Shift copy white PNG; Cmd/Ctrl copy ${sourceLabel}; add Option/Alt to download`;
+          copyButton.setAttribute("aria-label", `Copy ${type === "mermaid" ? "Mermaid" : "SVG"} diagram`);
+          copyButton.innerHTML = `
+          <svg class="hori-diagram-action-icon hori-diagram-copy-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="4" y="4" width="12" height="12" rx="2"></rect>
+            <rect x="8" y="8" width="12" height="12" rx="2" fill="rgb(235, 235, 235)"></rect>
+          </svg>
+        `;
+          actions.appendChild(copyButton);
+        }
+        if (actions.childElementCount) diagram.appendChild(actions);
+      });
+    };
+    const enhance = () => {
+      enhanceImages();
+      enhanceDiagrams();
+    };
+    const handleClick = (event) => {
+      const target = event.target;
+      if (!(target instanceof ownerDocument.defaultView.Element)) return;
+      const previewButton = target.closest(".diagram-preview-button, .hori-visual-preview-button");
+      if (previewButton) {
+        const diagram = findDiagram(previewButton, container, diagramSelector);
+        if (diagram) {
+          event.preventDefault();
+          event.stopPropagation();
+          openDiagram(diagram, ownerDocument, mountTarget);
+        }
+        return;
+      }
+      const copyButton = target.closest(".hori-diagram-copy-button");
+      if (copyButton) {
+        const diagram = findDiagram(copyButton, container, diagramSelector);
+        if (diagram) {
+          event.preventDefault();
+          event.stopPropagation();
+          void performDiagramCopyAction(diagram, event, { download }).then((success) => {
+            if (!success) return;
+            const originalTitle = copyButton.title;
+            const originalAriaLabel = copyButton.getAttribute("aria-label");
+            const feedback = event.altKey ? "Saved" : event.metaKey || event.ctrlKey ? `Copied ${diagram.dataset.diagramType === "mermaid" ? "code" : "SVG"}` : "Copied PNG";
+            copyButton.classList.add("copied");
+            copyButton.closest(".hori-diagram-actions")?.classList.add("copied");
+            copyButton.title = feedback;
+            copyButton.setAttribute("aria-label", feedback);
+            setTimeout(() => {
+              copyButton.classList.remove("copied");
+              copyButton.closest(".hori-diagram-actions")?.classList.remove("copied");
+              copyButton.title = originalTitle;
+              if (originalAriaLabel) copyButton.setAttribute("aria-label", originalAriaLabel);
+            }, 2e3);
+          });
+        }
+        return;
+      }
+      if (target.closest("button, a, summary, .svg-source-details")) return;
+      const image = target.matches(imageSelector) ? target : target.closest(imageSelector);
+      if (image && container.contains(image) && image.src) {
+        openVisualPreview({
+          type: "image",
+          src: image.currentSrc || image.src,
+          alt: image.alt || "",
+          document: ownerDocument,
+          mountTarget
+        });
+      }
+    };
+    const handleDiagramRequest = (event) => {
+      const target = event.target;
+      if (!(target instanceof ownerDocument.defaultView.Element)) return;
+      const diagram = findDiagram(target, container, diagramSelector);
+      if (diagram) openDiagram(diagram, ownerDocument, mountTarget);
+    };
+    enhance();
+    container.addEventListener("click", handleClick);
+    container.addEventListener("diagram-preview-request", handleDiagramRequest);
+    const Observer = ownerDocument.defaultView?.MutationObserver || globalThis.MutationObserver;
+    const observer = typeof Observer === "undefined" ? null : new Observer(enhance);
+    observer?.observe(container, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class", "data-markdown-visual"]
+    });
+    return () => {
+      observer?.disconnect();
+      container.removeEventListener("click", handleClick);
+      container.removeEventListener("diagram-preview-request", handleDiagramRequest);
+    };
+  }
+
   // src/hori-markdown-entry.js
   window.horiMarkdown = {
+    attachVisualPreviews,
     highlightCodeBlocks,
     parseMarkdown,
     parseMarkdownDetails,
-    processMathExpressions
+    processMathExpressions,
+    renderSvgBlocks
   };
 })();
 /*! Bundled license information:

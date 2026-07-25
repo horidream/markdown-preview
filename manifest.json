@@ -32,7 +32,6 @@
                 "css/MarkdownTOC.css",
                 "css/highlight.css",
                 "js/hori-markdown.bundle.css",
-                "css/mermaid-copy.css",
                 "css/print.css"
             ],
             "js": [
@@ -48,7 +47,6 @@
                 "js/underscore-min.js",
                 "js/mermaid.min.js",
                 "js/diagramflowseq.js",
-                "js/mermaid-copy.js",
                 "js/platumlencode.js",
                 "js/rawdeflate.js"
             ],

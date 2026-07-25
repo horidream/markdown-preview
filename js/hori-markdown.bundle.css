@@ -1569,3 +1569,234 @@ pre[class*=language-].line-numbers > code {
   color: inherit;
   opacity: 0.86;
 }
+
+/* node_modules/.pnpm/@hori+markdown@file+..+mifa+packages+markdown/node_modules/@hori/markdown/src/visuals.css */
+.markdown-content img[data-hori-visual-preview=image],
+.hori-markdown img[data-hori-visual-preview=image] {
+  cursor: zoom-in;
+}
+.hori-diagram-actions {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+[data-markdown-visual=diagram] {
+  position: relative;
+  box-sizing: border-box;
+  margin: 16px 0;
+  padding: 12px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+}
+[data-diagram-type=mermaid] {
+  overflow: hidden;
+}
+[data-diagram-type=svg] {
+  overflow: visible;
+}
+[data-markdown-visual=diagram] > svg,
+[data-markdown-visual=diagram] > .mermaid > svg,
+[data-markdown-visual=diagram] .mermaid > svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+[data-diagram-type=mermaid] svg:not(.hori-diagram-action-icon) .mindmap-node,
+[data-diagram-type=mermaid] svg:not(.hori-diagram-action-icon) rect {
+  stroke-width: 0 !important;
+  rx: 8px;
+  ry: 8px;
+}
+[data-diagram-type=mermaid] svg:not(.hori-diagram-action-icon) text {
+  text-decoration: none !important;
+  font-weight: 600 !important;
+}
+[data-diagram-type=mermaid] svg:not(.hori-diagram-action-icon) .mindmap-node text {
+  fill: #fff !important;
+}
+[data-diagram-type=mermaid] svg:not(.hori-diagram-action-icon) path,
+[data-diagram-type=mermaid] svg:not(.hori-diagram-action-icon) line {
+  stroke: #94a3b8 !important;
+  stroke-width: 1.5px !important;
+}
+[data-markdown-visual=diagram]:hover > .hori-diagram-actions,
+.hori-diagram-actions:hover,
+.hori-diagram-actions:focus-within,
+.hori-diagram-actions.copied {
+  opacity: 1;
+  visibility: visible;
+}
+.hori-visual-preview-button,
+.hori-diagram-copy-button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #333;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.hori-visual-preview-button {
+  cursor: zoom-in;
+}
+.hori-visual-preview-button:hover,
+.hori-diagram-copy-button:hover {
+  background: #fff;
+}
+.hori-diagram-copy-button.copied {
+  color: #2e7d32;
+  background: rgba(76, 175, 80, 0.15);
+  border-color: rgba(76, 175, 80, 0.5);
+}
+.hori-visual-preview-button svg,
+.hori-diagram-copy-button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hori-diagram-copy-button .hori-diagram-copy-icon {
+  stroke-width: 1.6;
+}
+.hori-visual-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  background: rgba(15, 18, 24, 0.94);
+}
+.hori-visual-viewer__toolbar {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 1;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+}
+.hori-visual-viewer__toolbar button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 6px;
+  background: #fff;
+  color: #172033;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.hori-visual-viewer__toolbar button:hover {
+  background: #f3f6fb;
+}
+.hori-visual-viewer__toolbar svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hori-visual-viewer__surface {
+  flex: 1;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+}
+.hori-visual-viewer__surface.is-dragging {
+  cursor: grabbing;
+}
+.hori-visual-viewer__content {
+  transform-origin: center center;
+  will-change: transform;
+}
+.hori-visual-viewer__image {
+  display: block;
+  max-width: min(92vw, 1600px);
+  max-height: 88vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+}
+.hori-visual-viewer__svg {
+  display: block;
+  max-width: 92vw;
+  max-height: 88vh;
+  overflow: visible;
+  background: #fff;
+  border-radius: 8px;
+  padding: 18px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+}
+.hori-visual-viewer__svg > svg {
+  display: block;
+  max-width: 100%;
+  max-height: calc(88vh - 36px);
+}
+.hori-visual-viewer__svg svg[data-diagram-type=mermaid] .mindmap-node,
+.hori-visual-viewer__svg svg[data-diagram-type=mermaid] rect {
+  stroke-width: 0 !important;
+  rx: 8px;
+  ry: 8px;
+}
+.hori-visual-viewer__svg svg[data-diagram-type=mermaid] text {
+  text-decoration: none !important;
+  font-weight: 600 !important;
+}
+.hori-visual-viewer__svg svg[data-diagram-type=mermaid] .mindmap-node text {
+  fill: #fff !important;
+}
+.hori-visual-viewer__svg svg[data-diagram-type=mermaid] path,
+.hori-visual-viewer__svg svg[data-diagram-type=mermaid] line {
+  stroke: #94a3b8 !important;
+  stroke-width: 1.5px !important;
+}
+@media (max-width: 640px) {
+  .hori-visual-viewer__toolbar {
+    top: 10px;
+    right: 10px;
+  }
+  .hori-visual-viewer__toolbar button {
+    width: 34px;
+    height: 34px;
+  }
+  .hori-visual-viewer__svg {
+    max-width: 94vw;
+    max-height: 86vh;
+    padding: 12px;
+  }
+}
