@@ -1575,6 +1575,19 @@ pre[class*=language-].line-numbers > code {
 .hori-markdown img[data-hori-visual-preview=image] {
   cursor: zoom-in;
 }
+.hori-markdown img[data-hori-visual-preview=image] {
+  max-width: 100%;
+  max-height: min(70vh, 720px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+.hori-markdown [data-markdown-visual=diagram] svg:not(.hori-diagram-action-icon) {
+  max-width: 100%;
+  max-height: min(70vh, 720px);
+  width: auto;
+  height: auto;
+}
 .hori-diagram-actions {
   position: absolute;
   top: 6px;
