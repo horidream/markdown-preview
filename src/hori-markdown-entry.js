@@ -1,4 +1,5 @@
 import {
+  enhanceTables,
   highlightCodeBlocks,
   parseMarkdown,
   parseMarkdownDetails,
@@ -13,6 +14,7 @@ import '@hori/markdown/visuals.css'
 
 window.horiMarkdown = {
   attachVisualPreviews,
+  enhanceTables,
   highlightCodeBlocks,
   parseMarkdown,
   parseMarkdownDetails,

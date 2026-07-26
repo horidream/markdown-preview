@@ -200,6 +200,9 @@
             if (window.horiMarkdown && typeof window.horiMarkdown.highlightCodeBlocks === 'function') {
                 window.horiMarkdown.highlightCodeBlocks(document.body);
             }
+            if (window.horiMarkdown && typeof window.horiMarkdown.enhanceTables === 'function') {
+                window.horiMarkdown.enhanceTables(document.body);
+            }
             $('img').on("error", () => resolveImg(this));
             await diagramFlowSeq.drawAllMermaid();
             refreshVisualPreviews();
